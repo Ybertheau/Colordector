@@ -1,17 +1,24 @@
 import pyttsx3
-import time
+import threading
+import queue
 
 engine = pyttsx3.init()
-last_spoken = ""
-last_time = 0
+speech_queue = queue.Queue()
 
-def speak(text, delay=2):
-    global last_spoken, last_time
+def _speech_worker():
+    while True:
+        text = speech_queue.get()
+        if text is None:
+            break
 
-    current_time = time.time()
-
-    if text != last_spoken or (current_time - last_time) > delay:
         engine.say(text)
         engine.runAndWait()
-        last_spoken = text
-        last_time = current_time
+
+        speech_queue.task_done()
+
+#  Thread unique qui tourne en boucle
+threading.Thread(target=_speech_worker, daemon=True).start()
+
+
+def speak(text):
+    speech_queue.put(text)

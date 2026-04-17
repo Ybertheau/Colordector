@@ -46,32 +46,57 @@ def closest_color(rgb):
     return closest_name
 
 
-# Simplification FR 
-COLOR_MAP_FR = {
-    "red": "rouge",
-    "darkred": "rouge foncé",
-    "blue": "bleu",
-    "lightblue": "bleu clair",
-    "green": "vert",
-    "darkgreen": "vert foncé",
-    "yellow": "jaune",
-    "black": "noir",
-    "white": "blanc",
-    "gray": "gris",
-    "grey": "gris",
-    "purple": "violet",
-    "pink": "rose",
-    "orange": "orange",
-    "brown": "marron"
-}
+def simplify_color(name):
+    name = name.lower()
+
+    if "gray" in name or "grey" in name:
+        return "gris"
+
+    if "black" in name:
+        return "noir"
+
+    if "white" in name:
+        return "blanc"
+
+    if "red" in name:
+        return "rouge"
+
+    if "blue" in name:
+        return "bleu"
+
+    if "green" in name:
+        return "vert"
+
+    if "yellow" in name:
+        return "jaune"
+
+    if "purple" in name or "violet" in name:
+        return "violet"
+
+    if "pink" in name:
+        return "rose"
+
+    if "orange" in name:
+        return "orange"
+
+    if "brown" in name:
+        return "marron"
+
+    return "couleur inconnue"
 
 
 def get_color_name(h, s, v):
+    # 🎯 Gestion gris / noir / blanc
     if s < SATURATION_MIN:
-        return "gris/blanc/noir"
+        if v < 50:
+            return "noir"
+        elif v > 200:
+            return "blanc"
+        else:
+            return "gris"
 
     rgb = hsv_to_rgb(h, s, v)
     name = closest_color(rgb)
 
-    # Traduction FR
-    return COLOR_MAP_FR.get(name, name)
+    # Simplification intelligente
+    return simplify_color(name)
