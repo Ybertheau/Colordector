@@ -1,13 +1,20 @@
 import cv2
 import numpy as np
 import webcolors
+from collections import deque
 from utils.config import ZONE_SIZE, SATURATION_MIN
 
-# Pré-calcul des couleurs CSS (optimisation)
+#  Buffer pour stabilisation temporelle
+color_buffer = deque(maxlen=5)
+
+#  Pré-calcul des couleurs CSS (optimisé)
 CSS_COLORS = {
     name: webcolors.name_to_rgb(name)
     for name in webcolors.names("css3")
 }
+
+CSS_NAMES = list(CSS_COLORS.keys())
+CSS_VALUES = np.array(list(CSS_COLORS.values()))
 
 
 def get_center_color(frame):
@@ -16,12 +23,17 @@ def get_center_color(frame):
 
     size = ZONE_SIZE
 
-    zone = hsv[
-        h//2 - size : h//2 + size,
-        w//2 - size : w//2 + size
-    ]
+    #  zone sécurisée (évite crash)
+    y1 = max(0, h // 2 - size)
+    y2 = min(h, h // 2 + size)
+    x1 = max(0, w // 2 - size)
+    x2 = min(w, w // 2 + size)
 
-    avg_color = np.mean(zone, axis=(0, 1))
+    zone = hsv[y1:y2, x1:x2]
+
+    #  médiane → robuste au bruit
+    avg_color = np.median(zone, axis=(0, 1)).astype(int)
+
     return avg_color  # H, S, V
 
 
@@ -32,18 +44,12 @@ def hsv_to_rgb(h, s, v):
 
 
 def closest_color(rgb):
-    r, g, b = rgb
-    min_distance = float("inf")
-    closest_name = "inconnu"
+    rgb_array = np.array(rgb)
 
-    for name, (cr, cg, cb) in CSS_COLORS.items():
-        distance = (cr - r)**2 + (cg - g)**2 + (cb - b)**2
+    distances = np.sum((CSS_VALUES - rgb_array) ** 2, axis=1)
+    index = np.argmin(distances)
 
-        if distance < min_distance:
-            min_distance = distance
-            closest_name = name
-
-    return closest_name
+    return CSS_NAMES[index]
 
 
 def simplify_color(name):
@@ -86,17 +92,21 @@ def simplify_color(name):
 
 
 def get_color_name(h, s, v):
-    # 🎯 Gestion gris / noir / blanc
-    if s < SATURATION_MIN:
+    #  Gestion gris / noir / blanc améliorée
+    if s < SATURATION_MIN or v < 40:
         if v < 50:
-            return "noir"
+            color = "noir"
         elif v > 200:
-            return "blanc"
+            color = "blanc"
         else:
-            return "gris"
+            color = "gris"
+    else:
+        rgb = hsv_to_rgb(h, s, v)
+        name = closest_color(rgb)
+        color = simplify_color(name)
 
-    rgb = hsv_to_rgb(h, s, v)
-    name = closest_color(rgb)
+    #  stabilisation temporelle
+    color_buffer.append(color)
+    stable_color = max(set(color_buffer), key=color_buffer.count)
 
-    # Simplification intelligente
-    return simplify_color(name)
+    return stable_color

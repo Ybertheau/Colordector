@@ -1,23 +1,54 @@
 # utils/config.py
 
-# Caméra
-CAMERA_INDEX = 0  # 0 = webcam, 1 ou 2 = téléphone
+# ======================
+#  CAMÉRA
+# ======================
+CAMERA_INDEX = 0  # 0 = webcam, 1/2 = autre source
 
-# Voix
+FRAME_WIDTH = 640
+FRAME_HEIGHT = 480
+
+
+# ======================
+#  VOIX
+# ======================
 VOICE_ENABLED = True
-SPEAK_DELAY = 2  # secondes entre chaque annonce
 
-# Détection
-USE_CENTER_PIXEL = True
-ZONE_SIZE = 20  # taille zone si on améliore plus tard
+#  délai minimum entre deux annonces (anti spam)
+SPEAK_DELAY = 1.0  # secondes
 
-# Seuils HSV (tu pourras les ajuster)
-COLOR_RANGES = {
-    "rouge": [(0, 10), (170, 180)],
-    "jaune": [(20, 35)],
-    "vert": [(35, 85)],
-    "bleu": [(90, 130)],
-    "violet": [(130, 160)]
-}
+#  autoriser répétition même couleur après délai
+ALLOW_REPEAT_AFTER_DELAY = True
 
+
+# ======================
+#  DÉTECTION COULEUR
+# ======================
+
+# Taille de la zone analysée (autour du centre)
+ZONE_SIZE = 20
+
+#  seuil saturation (gris vs couleur)
 SATURATION_MIN = 50
+
+#  seuil luminosité (noir)
+VALUE_DARK_MAX = 50
+
+#  seuil luminosité (blanc)
+VALUE_LIGHT_MIN = 200
+
+
+# ======================
+#  STABILISATION
+# ======================
+
+# Nombre de frames pour stabiliser la couleur
+COLOR_BUFFER_SIZE = 5
+
+
+# ======================
+#  DEBUG
+# ======================
+
+DEBUG = True
+PRINT_HSV = False

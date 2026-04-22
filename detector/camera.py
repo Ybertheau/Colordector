@@ -1,14 +1,21 @@
 import cv2
 
 def init_camera(index=0):
-    cap = cv2.VideoCapture(index)
+    backends = [
+        cv2.CAP_DSHOW,
+        cv2.CAP_MSMF,
+        cv2.CAP_ANY
+    ]
 
-    if not cap.isOpened():
-        print("Caméra introuvable")
-        return None
+    for backend in backends:
+        cap = cv2.VideoCapture(index, backend)
 
-    print("Caméra connectée")
-    return cap
+        if cap.isOpened():
+            print(f"Caméra connectée (backend={backend})")
+            return cap
+
+    print("Caméra introuvable")
+    return None
 
 
 def get_frame(cap):
