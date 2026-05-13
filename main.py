@@ -3,24 +3,20 @@ import time
 
 from detector.camera import init_camera, get_frame
 from detector.color import get_center_color, get_color_name
-from detector.voice import speak
+from engine.engine import Engine
 from utils.config import CAMERA_INDEX
 
-#  État global simple
-clicked = False
-last_spoken = None
+# Engine = logique centrale
+engine = Engine()
 
 
 def on_mouse(event, x, y, flags, param):
-    global clicked
     if event == cv2.EVENT_LBUTTONDOWN:
-        print("CLICK OK")  # debug utile
-        clicked = True
+        print("CLICK OK")
+        engine.set_click()
 
 
 def main():
-    global clicked, last_spoken
-
     cap = init_camera(CAMERA_INDEX)
 
     if cap is None:
@@ -31,33 +27,30 @@ def main():
     cv2.setMouseCallback("ColorDetector", on_mouse)
 
     print("Clique dans la fenêtre pour entendre la couleur")
-    speak("Application prête")
+
+    engine.speak("Application prête")
 
     while True:
         frame = get_frame(cap)
 
         if frame is None:
-            print("En attente de la caméra...")
             time.sleep(1)
             continue
 
-        #  Analyse couleur (continue)
-        h, s, v = get_center_color(frame)
-        current_color = get_color_name(h, s, v)
+        # Analyse couleur
+        rgb, h, s, v = get_center_color(frame)
 
-        #  Interaction utilisateur
-        if clicked:
-            clicked = False  # reset immédiat (important)
+        current_color = get_color_name(
+            rgb,
+            h,
+            s,
+            v
+        )
 
-            if current_color is not None:
-                print("Couleur détectée :", current_color)
+        # Engine gère la logique
+        engine.process(current_color)
 
-                #  anti-répétition
-                if current_color != last_spoken:
-                    speak(current_color)
-                    last_spoken = current_color
-
-        #  Feedback visuel minimal (utile debug)
+        # Point central visuel
         cv2.circle(
             frame,
             (frame.shape[1] // 2, frame.shape[0] // 2),
@@ -66,13 +59,44 @@ def main():
             -1
         )
 
+        # Texte debug couleur
+        cv2.putText(
+            frame,
+            f"Couleur: {current_color}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2
+        )
+
+        # Debug RGB
+        cv2.putText(
+            frame,
+            f"RGB: {rgb}",
+            (20, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2
+        )
+
+        # Debug HSV
+        cv2.putText(
+            frame,
+            f"HSV: {(h, s, v)}",
+            (20, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2
+        )
+
         cv2.imshow("ColorDetector", frame)
 
-        key = cv2.waitKey(1)
-        if key == 27:  # ESC
+        if cv2.waitKey(1) == 27:
             break
 
-    #  Clean exit
     cap.release()
     cv2.destroyAllWindows()
 

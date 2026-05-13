@@ -2,12 +2,18 @@ import cv2
 import numpy as np
 import webcolors
 from collections import deque
-from utils.config import ZONE_SIZE, SATURATION_MIN
 
-#  Buffer pour stabilisation temporelle
-color_buffer = deque(maxlen=5)
+from utils.config import (
+    ZONE_SIZE,
+    COLOR_BUFFER_SIZE
+)
 
-#  Pré-calcul des couleurs CSS (optimisé)
+color_buffer = deque(maxlen=COLOR_BUFFER_SIZE)
+
+# =========================
+# CSS COLORS
+# =========================
+
 CSS_COLORS = {
     name: webcolors.name_to_rgb(name)
     for name in webcolors.names("css3")
@@ -17,58 +23,75 @@ CSS_NAMES = list(CSS_COLORS.keys())
 CSS_VALUES = np.array(list(CSS_COLORS.values()))
 
 
-def get_center_color(frame):
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    h, w, _ = hsv.shape
+# =========================
+# CENTER COLOR
+# =========================
 
+def get_center_color(frame):
+
+    h, w, _ = frame.shape
     size = ZONE_SIZE
 
-    #  zone sécurisée (évite crash)
     y1 = max(0, h // 2 - size)
     y2 = min(h, h // 2 + size)
+
     x1 = max(0, w // 2 - size)
     x2 = min(w, w // 2 + size)
 
-    zone = hsv[y1:y2, x1:x2]
+    zone_bgr = frame[y1:y2, x1:x2]
 
-    #  médiane → robuste au bruit
-    avg_color = np.median(zone, axis=(0, 1)).astype(int)
+    # Couleur réelle webcam
+    avg_bgr = np.median(zone_bgr, axis=(0, 1)).astype(int)
 
-    return avg_color  # H, S, V
+    # BGR → RGB
+    rgb = (
+        int(avg_bgr[2]),
+        int(avg_bgr[1]),
+        int(avg_bgr[0])
+    )
+
+    # HSV uniquement pour luminosité
+    hsv = cv2.cvtColor(
+        np.uint8([[avg_bgr]]),
+        cv2.COLOR_BGR2HSV
+    )[0][0]
+
+    h, s, v = hsv
+
+    return rgb, h, s, v
 
 
-def hsv_to_rgb(h, s, v):
-    hsv_pixel = np.uint8([[[h, s, v]]])
-    bgr = cv2.cvtColor(hsv_pixel, cv2.COLOR_HSV2BGR)[0][0]
-    return (int(bgr[2]), int(bgr[1]), int(bgr[0]))  # RGB
-
+# =========================
+# CLOSEST COLOR
+# =========================
 
 def closest_color(rgb):
+
     rgb_array = np.array(rgb)
 
-    distances = np.sum((CSS_VALUES - rgb_array) ** 2, axis=1)
+    distances = np.sum(
+        (CSS_VALUES - rgb_array) ** 2,
+        axis=1
+    )
+
     index = np.argmin(distances)
 
     return CSS_NAMES[index]
 
 
+# =========================
+# SIMPLIFY
+# =========================
+
 def simplify_color(name):
+
     name = name.lower()
-
-    if "gray" in name or "grey" in name:
-        return "gris"
-
-    if "black" in name:
-        return "noir"
-
-    if "white" in name:
-        return "blanc"
-
-    if "red" in name:
-        return "rouge"
 
     if "blue" in name:
         return "bleu"
+
+    if "red" in name:
+        return "rouge"
 
     if "green" in name:
         return "vert"
@@ -88,25 +111,42 @@ def simplify_color(name):
     if "brown" in name:
         return "marron"
 
+    if "black" in name:
+        return "noir"
+
+    if "white" in name:
+        return "blanc"
+
+    if "gray" in name or "grey" in name:
+        return "gris"
+
     return "couleur inconnue"
 
 
-def get_color_name(h, s, v):
-    #  Gestion gris / noir / blanc améliorée
-    if s < SATURATION_MIN or v < 40:
-        if v < 50:
-            color = "noir"
-        elif v > 200:
-            color = "blanc"
-        else:
-            color = "gris"
-    else:
-        rgb = hsv_to_rgb(h, s, v)
-        name = closest_color(rgb)
-        color = simplify_color(name)
+# =========================
+# FINAL COLOR
+# =========================
 
-    #  stabilisation temporelle
+def get_color_name(rgb, h, s, v):
+
+    # Noir réel
+    if v < 35:
+        color = "noir"
+
+    # Blanc réel
+    elif v > 220 and s < 25:
+        color = "blanc"
+
+    else:
+        css_name = closest_color(rgb)
+        color = simplify_color(css_name)
+
+    # Stabilisation
     color_buffer.append(color)
-    stable_color = max(set(color_buffer), key=color_buffer.count)
+
+    stable_color = max(
+        set(color_buffer),
+        key=color_buffer.count
+    )
 
     return stable_color

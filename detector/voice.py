@@ -8,7 +8,7 @@ from playsound import playsound
 
 speech_queue = queue.Queue()
 
-# 🔥 voix française (tu peux changer)
+#  voix française (tu peux changer)
 VOICE = "fr-FR-DeniseNeural"
 
 
