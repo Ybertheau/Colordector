@@ -1,3 +1,7 @@
-opencv-python
+opencv-python==4.9.0.80
+numpy>=1.26.0
 pyttsx3
-numpydir
+edge-tts
+playsound
+ultralytics
+webcolors

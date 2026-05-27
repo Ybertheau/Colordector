@@ -7,14 +7,15 @@ import os
 from playsound import playsound
 
 speech_queue = queue.Queue()
-
-#  voix française (tu peux changer)
 VOICE = "fr-FR-DeniseNeural"
 
 
 def _play_audio(file_path):
-    playsound(file_path)
-    os.remove(file_path)
+    try:
+        playsound(file_path)
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 
 async def _synthesize(text):
@@ -28,6 +29,9 @@ async def _synthesize(text):
 
 
 def _worker():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     while True:
         text = speech_queue.get()
 
@@ -35,7 +39,7 @@ def _worker():
             break
 
         try:
-            asyncio.run(_synthesize(text))
+            loop.run_until_complete(_synthesize(text))
         except Exception as e:
             print("Erreur TTS:", e)
 

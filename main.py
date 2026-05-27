@@ -3,10 +3,12 @@ import time
 
 from detector.camera import init_camera, get_frame
 from detector.color import get_center_color, get_color_name
+from detector.shape import detect_shape
+from detector.object import detect_objects
+from detector.voice import speak
 from engine.engine import Engine
 from utils.config import CAMERA_INDEX
 
-# Engine = logique centrale
 engine = Engine()
 
 
@@ -17,6 +19,7 @@ def on_mouse(event, x, y, flags, param):
 
 
 def main():
+
     cap = init_camera(CAMERA_INDEX)
 
     if cap is None:
@@ -26,71 +29,63 @@ def main():
     cv2.namedWindow("ColorDetector")
     cv2.setMouseCallback("ColorDetector", on_mouse)
 
-    print("Clique dans la fenêtre pour entendre la couleur")
-
-    engine.speak("Application prête")
+    print("Clique dans la fenêtre pour entendre la scène")
+    speak("Application prête")
 
     while True:
+
         frame = get_frame(cap)
 
         if frame is None:
             time.sleep(1)
             continue
 
-        # Analyse couleur
+        # =========================
+        # COULEUR
+        # =========================
         rgb, h, s, v = get_center_color(frame)
+        color = get_color_name(rgb, h, s, v)
 
-        current_color = get_color_name(
-            rgb,
-            h,
-            s,
-            v
-        )
+        # =========================
+        # FORME
+        # =========================
+        shapes = detect_shape(frame)
+        shape = shapes[0] if shapes else None
 
-        # Engine gère la logique
-        engine.process(current_color)
+        # =========================
+        # OBJET
+        # =========================
+        objects = detect_objects(frame)
+        obj = objects[0]["name"] if objects else None
 
-        # Point central visuel
-        cv2.circle(
-            frame,
-            (frame.shape[1] // 2, frame.shape[0] // 2),
-            5,
-            (0, 255, 0),
-            -1
-        )
+        # =========================
+        # DATA ENGINE
+        # =========================
+        data = {
+            "color": color,
+            "shape": shape,
+            "object": obj
+        }
 
-        # Texte debug couleur
-        cv2.putText(
-            frame,
-            f"Couleur: {current_color}",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 0),
-            2
-        )
+        engine.process(data)
 
-        # Debug RGB
-        cv2.putText(
-            frame,
-            f"RGB: {rgb}",
-            (20, 80),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2
-        )
+        # =========================
+        # UI
+        # =========================
+        cv2.circle(frame,
+                   (frame.shape[1] // 2, frame.shape[0] // 2),
+                   5, (0, 255, 0), -1)
 
-        # Debug HSV
-        cv2.putText(
-            frame,
-            f"HSV: {(h, s, v)}",
-            (20, 120),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2
-        )
+        cv2.putText(frame, f"Couleur: {color}", (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        if shape:
+            cv2.putText(frame, f"Forme: {shape}", (20, 80),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 200, 0), 2)
+
+        if obj:
+            cv2.putText(frame, f"Objet: {obj}", (20, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (200, 200, 255), 2)
 
         cv2.imshow("ColorDetector", frame)
 
